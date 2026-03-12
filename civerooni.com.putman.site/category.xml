@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature
+         url="features/civerooni.com.putman.feature_1.0.0.qualifier.jar"
+         id="civerooni.com.putman.feature"
+         version="1.0.0.qualifier">
+      <category name="civerooni.com.putman.category"/>
+   </feature>
+   <category-def
+         name="civerooni.com.putman.category"
+         label="Putman REST Client">
+      <description>
+         Putman is a REST API client for Eclipse, inspired by Postman.
+         Send HTTP requests (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS),
+         inspect responses in Raw, JSON, or HTML format, and manage multiple
+         request tabs — all inside your Eclipse IDE.
+      </description>
+   </category-def>
+</site>
