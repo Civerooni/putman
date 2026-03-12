@@ -1,18 +1,9 @@
 <?xml version="1.0" encoding="ASCII"?>
 <application:Application xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:application="http://www.eclipse.org/ui/2010/UIModel/application" xmlns:basic="http://www.eclipse.org/ui/2010/UIModel/application/ui/basic" xmlns:menu="http://www.eclipse.org/ui/2010/UIModel/application/ui/menu" xmi:id="_putman_app_0001" elementId="civerooni.com.putman.ui.application">
   <children xsi:type="basic:TrimmedWindow" xmi:id="_putman_win_0001" elementId="civerooni.com.putman.ui.trimmedwindow.main" label="Putman" width="1100" height="700">
-    <children xsi:type="basic:PartSashContainer" xmi:id="_putman_psc_0001" elementId="civerooni.com.putman.ui.partsashcontainer.main" horizontal="true">
-      <children xsi:type="basic:PartStack" xmi:id="_putman_ps_0001" elementId="civerooni.com.putman.ui.partstack.collections" containerData="250">
-        <children xsi:type="basic:Part" xmi:id="_putman_part_0001" elementId="civerooni.com.putman.ui.part.collections" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.parts.RequestCollectionPart" label="Collections"/>
-      </children>
-      <children xsi:type="basic:PartSashContainer" xmi:id="_putman_psc_0002" elementId="civerooni.com.putman.ui.partsashcontainer.right" horizontal="false" containerData="850">
-        <children xsi:type="basic:PartStack" xmi:id="_putman_ps_0002" elementId="civerooni.com.putman.ui.partstack.editor" containerData="400">
-          <children xsi:type="basic:Part" xmi:id="_putman_part_0002" elementId="civerooni.com.putman.ui.part.editor" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.parts.RequestEditorPart" label="Request"/>
-        </children>
-        <children xsi:type="basic:PartStack" xmi:id="_putman_ps_0003" elementId="civerooni.com.putman.ui.partstack.response" containerData="300">
-          <children xsi:type="basic:Part" xmi:id="_putman_part_0003" elementId="civerooni.com.putman.ui.part.response" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.parts.ResponsePart" label="Response"/>
-        </children>
-      </children>
+    <children xsi:type="basic:PartSashContainer" xmi:id="_putman_psc_0001" elementId="civerooni.com.putman.ui.partsashcontainer.main" horizontal="false">
+      <children xsi:type="basic:Part" xmi:id="_putman_part_0002" elementId="civerooni.com.putman.ui.part.editor" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.parts.RequestEditorPart" label="Request" containerData="400"/>
+      <children xsi:type="basic:Part" xmi:id="_putman_part_0003" elementId="civerooni.com.putman.ui.part.response" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.parts.ResponsePart" label="Response" containerData="300"/>
     </children>
     <mainMenu xmi:id="_putman_menu_0001" elementId="civerooni.com.putman.ui.main.menu">
       <children xsi:type="menu:Menu" xmi:id="_putman_menu_0002" elementId="civerooni.com.putman.ui.main.menu.file" label="File">

@@ -21,6 +21,12 @@ public class ResponseModel {
         return new ResponseModel(message);
     }
 
+    public static ResponseModel empty() {
+        return new ResponseModel(-1, null);
+    }
+
+    public boolean isEmpty() { return statusCode == -1 && body == null && error == null; }
+
     public boolean isError() { return error != null; }
     public int getStatusCode() { return statusCode; }
     public String getBody() { return body; }

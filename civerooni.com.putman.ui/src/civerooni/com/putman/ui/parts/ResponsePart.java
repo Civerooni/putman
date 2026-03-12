@@ -1,6 +1,7 @@
 package civerooni.com.putman.ui.parts;
 
 import org.eclipse.e4.core.di.annotations.Optional;
+import org.eclipse.e4.core.services.events.IEventBroker;
 import org.eclipse.e4.ui.di.UIEventTopic;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
@@ -22,6 +23,10 @@ import jakarta.inject.Inject;
 
 public class ResponsePart {
 
+    public static final String FORMAT_CHANGE_TOPIC = "civerooni/putman/ui/response/format";
+
+    @Inject private IEventBroker broker;
+
     private Label statusLabel;
     private Text responseBody;
     private Browser htmlBrowser;
@@ -36,7 +41,7 @@ public class ResponsePart {
         parent.setLayout(new GridLayout(1, false));
 
         statusLabel = new Label(parent, SWT.NONE);
-        statusLabel.setText("Status: —");
+        statusLabel.setText("Response Status: \u2014");
 
         Composite toolbar = new Composite(parent, SWT.NONE);
         toolbar.setLayout(new GridLayout(2, false));
@@ -78,6 +83,7 @@ public class ResponsePart {
             public void widgetSelected(SelectionEvent e) {
                 bodyErrorLabel.setText("");
                 int sel = bodyTypeCombo.getSelectionIndex();
+                broker.post(FORMAT_CHANGE_TOPIC, sel);
                 if (sel == 2 && htmlBrowser != null) { // HTML
                     htmlBrowser.setText(responseBody.getText());
                     stackLayout.topControl = htmlBrowser;
@@ -110,19 +116,58 @@ public class ResponsePart {
     @Optional
     public void onResponse(@UIEventTopic(SendRequestHandler.RESPONSE_TOPIC) ResponseModel response) {
         if (statusLabel == null || statusLabel.isDisposed()) return;
+        // Real response: reset format to Raw
         bodyTypeCombo.select(0);
         bodyErrorLabel.setText("");
         rawSnapshot = "";
         stackLayout.topControl = responseBody;
         bodyStack.layout();
-        if (response.isError()) {
-            statusLabel.setText("Error");
+        setStatusAndBody(response);
+    }
+
+    @Inject
+    @Optional
+    public void onReplayResponse(@UIEventTopic(RequestEditorPart.REPLAY_RESPONSE_TOPIC) ResponseReplay replay) {
+        if (statusLabel == null || statusLabel.isDisposed()) return;
+        bodyErrorLabel.setText("");
+        rawSnapshot = "";
+        stackLayout.topControl = responseBody;
+        bodyStack.layout();
+        setStatusAndBody(replay.response);
+        applyFormat(replay.format);
+    }
+
+    private void setStatusAndBody(ResponseModel response) {
+        if (response == null || response.isEmpty()) {
+            statusLabel.setText("Response Status: \u2014");
+            responseBody.setText("");
+        } else if (response.isError()) {
+            statusLabel.setText("Response Status: Error");
             responseBody.setText(response.getError());
         } else {
-            statusLabel.setText("Status: " + response.getStatusCode());
+            statusLabel.setText("Response Status: " + response.getStatusCode());
             responseBody.setText(response.getBody() != null ? response.getBody() : "");
         }
         statusLabel.getParent().layout();
+    }
+
+    private void applyFormat(int format) {
+        bodyTypeCombo.select(format);
+        if (format == 2 && htmlBrowser != null) { // HTML
+            htmlBrowser.setText(responseBody.getText());
+            stackLayout.topControl = htmlBrowser;
+            bodyStack.layout();
+        } else if (format == 1) { // JSON
+            String raw = responseBody.getText();
+            if (!raw.isBlank()) {
+                try {
+                    rawSnapshot = raw;
+                    responseBody.setText(prettifyJson(raw));
+                } catch (IllegalArgumentException ex) {
+                    bodyErrorLabel.setText("Invalid JSON: " + ex.getMessage());
+                }
+            }
+        }
     }
 
     private static String prettifyJson(String json) {

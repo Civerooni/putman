@@ -3,10 +3,15 @@ package civerooni.com.putman.ui.parts;
 import org.eclipse.e4.core.commands.ECommandService;
 import org.eclipse.e4.core.commands.EHandlerService;
 import org.eclipse.e4.core.contexts.IEclipseContext;
-import org.eclipse.swt.SWT;
+import org.eclipse.e4.core.di.annotations.Optional;
+import org.eclipse.e4.core.services.events.IEventBroker;
+import org.eclipse.e4.ui.di.UIEventTopic;
 import org.eclipse.jface.layout.TableColumnLayout;
 import org.eclipse.jface.viewers.ColumnWeightData;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
+import org.eclipse.swt.custom.CTabFolder2Adapter;
+import org.eclipse.swt.custom.CTabFolderEvent;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.TableEditor;
 import org.eclipse.swt.events.FocusAdapter;
@@ -18,16 +23,17 @@ import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 
 import java.util.function.IntConsumer;
@@ -35,25 +41,113 @@ import java.util.function.IntConsumer;
 import civerooni.com.putman.core.model.HeaderEntry;
 import civerooni.com.putman.core.model.HttpMethod;
 import civerooni.com.putman.core.model.RequestModel;
+import civerooni.com.putman.core.model.ResponseModel;
+import civerooni.com.putman.ui.handlers.SendRequestHandler;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 
 public class RequestEditorPart {
 
-    @Inject
-    private IEclipseContext context;
+    public static final String NEW_REQUEST_TOPIC = "civerooni/putman/ui/newrequest";
 
-    @Inject
-    private ECommandService commandService;
+    /**
+     * Posted when switching tabs to replay a cached response in ResponsePart.
+     * ResponsePart subscribes to this in addition to SendRequestHandler.RESPONSE_TOPIC.
+     */
+    public static final String REPLAY_RESPONSE_TOPIC = "civerooni/putman/ui/response/replay";
 
-    @Inject
-    private EHandlerService handlerService;
+    @Inject private IEclipseContext context;
+    @Inject private ECommandService commandService;
+    @Inject private EHandlerService handlerService;
+    @Inject private IEventBroker broker;
+
+    private CTabFolder requestTabs;
+    private int tabCounter = 1;
 
     @PostConstruct
     public void createControls(Composite parent) {
-        RequestModel model = new RequestModel();
-        context.set(RequestModel.class, model);
+        parent.setLayout(new FillLayout());
 
+        requestTabs = new CTabFolder(parent, SWT.BORDER | SWT.CLOSE);
+        requestTabs.setSimple(false);
+
+        requestTabs.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                updateContextForActiveTab();
+            }
+        });
+
+        requestTabs.addCTabFolder2Listener(new CTabFolder2Adapter() {
+            @Override
+            public void close(CTabFolderEvent event) {
+                if (requestTabs.getItemCount() == 1) {
+                    event.doit = false;
+                }
+            }
+        });
+
+        addNewTab();
+    }
+
+    @Inject
+    @Optional
+    public void onNewRequest(@UIEventTopic(NEW_REQUEST_TOPIC) Object ignored) {
+        if (requestTabs == null || requestTabs.isDisposed()) return;
+        addNewTab();
+    }
+
+    /** Caches the real response from SendRequestHandler in the active tab. */
+    @Inject
+    @Optional
+    public void onResponse(@UIEventTopic(SendRequestHandler.RESPONSE_TOPIC) ResponseModel response) {
+        if (requestTabs == null || requestTabs.isDisposed()) return;
+        CTabItem active = requestTabs.getSelection();
+        if (active != null && !active.isDisposed()) {
+            active.setData("response", response);
+        }
+    }
+
+    /** Saves the response format selection for the active tab. */
+    @Inject
+    @Optional
+    public void onFormatChange(@UIEventTopic(ResponsePart.FORMAT_CHANGE_TOPIC) Integer format) {
+        if (requestTabs == null || requestTabs.isDisposed()) return;
+        CTabItem active = requestTabs.getSelection();
+        if (active != null && !active.isDisposed()) {
+            active.setData("responseFormat", format);
+        }
+    }
+
+    private void addNewTab() {
+        RequestModel model = new RequestModel();
+        CTabItem tab = new CTabItem(requestTabs, SWT.CLOSE);
+        tab.setText("Request " + tabCounter++);
+        tab.setData("model", model);
+        tab.setData("responseFormat", 0);
+
+        Composite content = new Composite(requestTabs, SWT.NONE);
+        createEditorContent(content, model);
+        tab.setControl(content);
+
+        requestTabs.setSelection(tab);
+        context.set(RequestModel.class, model);
+        broker.post(REPLAY_RESPONSE_TOPIC, new ResponseReplay(ResponseModel.empty(), 0));
+    }
+
+    private void updateContextForActiveTab() {
+        CTabItem selected = requestTabs.getSelection();
+        if (selected == null || selected.isDisposed()) return;
+        RequestModel model = (RequestModel) selected.getData("model");
+        context.set(RequestModel.class, model);
+        ResponseModel response = (ResponseModel) selected.getData("response");
+        Integer format = (Integer) selected.getData("responseFormat");
+        broker.post(REPLAY_RESPONSE_TOPIC, new ResponseReplay(
+                response != null ? response : ResponseModel.empty(),
+                format != null ? format : 0));
+    }
+
+    private void createEditorContent(Composite parent, RequestModel model) {
         parent.setLayout(new GridLayout(1, false));
 
         // URL bar row
@@ -76,7 +170,6 @@ public class RequestEditorPart {
         CTabFolder tabFolder = new CTabFolder(parent, SWT.BORDER);
         tabFolder.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
-        // Suppress flag to prevent feedback loops between URL text and params table
         final boolean[] suppressParamSync = { false };
 
         // --- Params tab ---
@@ -500,7 +593,6 @@ public class RequestEditorPart {
 
         tabFolder.setSelection(0);
 
-        // Keep model in sync with widgets
         methodCombo.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
@@ -508,7 +600,6 @@ public class RequestEditorPart {
             }
         });
 
-        // URL listener: update model and parse params (unless we're rebuilding the URL from params)
         urlText.addModifyListener(e -> {
             String url = urlText.getText();
             model.setUrl(url);
@@ -527,10 +618,6 @@ public class RequestEditorPart {
         });
     }
 
-    /**
-     * Parses query parameters from the URL and repopulates the params table and model.
-     * Called when the user edits the URL text directly.
-     */
     private static void refreshParamsTable(String url, Table paramsTable, RequestModel model) {
         model.getParams().clear();
         paramsTable.removeAll();
@@ -550,10 +637,6 @@ public class RequestEditorPart {
         }
     }
 
-    /**
-     * Rebuilds the URL from the base (everything before '?') plus only the enabled params.
-     * Called when the user edits params in the table.
-     */
     private static String buildUrlWithParams(RequestModel model) {
         String url = model.getUrl();
         int queryStart = url.indexOf('?');
