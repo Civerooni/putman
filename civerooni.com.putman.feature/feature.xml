@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="civerooni.com.putman.feature"
+      label="Putman Feature"
+      version="1.0.0.qualifier"
+      provider-name="CIVEROONI">
+
+   <description>
+      Putman - REST API client built on Eclipse RCP 4.
+   </description>
+
+   <copyright>
+      Copyright 2026 Civerooni
+   </copyright>
+
+   <license>
+      [Enter License Description here.]
+   </license>
+
+   <plugin
+         id="civerooni.com.putman.core"
+         version="0.0.0"/>
+
+   <plugin
+         id="civerooni.com.putman.ui"
+         version="0.0.0"/>
+
+
+</feature>

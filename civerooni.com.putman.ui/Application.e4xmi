@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="ASCII"?>
+<application:Application xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:application="http://www.eclipse.org/ui/2010/UIModel/application" xmlns:basic="http://www.eclipse.org/ui/2010/UIModel/application/ui/basic" xmlns:menu="http://www.eclipse.org/ui/2010/UIModel/application/ui/menu" xmi:id="_putman_app_0001" elementId="civerooni.com.putman.ui.application">
+  <children xsi:type="basic:TrimmedWindow" xmi:id="_putman_win_0001" elementId="civerooni.com.putman.ui.trimmedwindow.main" label="Putman" width="1100" height="700">
+    <children xsi:type="basic:PartSashContainer" xmi:id="_putman_psc_0001" elementId="civerooni.com.putman.ui.partsashcontainer.main" horizontal="true">
+      <children xsi:type="basic:PartStack" xmi:id="_putman_ps_0001" elementId="civerooni.com.putman.ui.partstack.collections" containerData="250">
+        <children xsi:type="basic:Part" xmi:id="_putman_part_0001" elementId="civerooni.com.putman.ui.part.collections" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.parts.RequestCollectionPart" label="Collections"/>
+      </children>
+      <children xsi:type="basic:PartSashContainer" xmi:id="_putman_psc_0002" elementId="civerooni.com.putman.ui.partsashcontainer.right" horizontal="false" containerData="850">
+        <children xsi:type="basic:PartStack" xmi:id="_putman_ps_0002" elementId="civerooni.com.putman.ui.partstack.editor" containerData="400">
+          <children xsi:type="basic:Part" xmi:id="_putman_part_0002" elementId="civerooni.com.putman.ui.part.editor" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.parts.RequestEditorPart" label="Request"/>
+        </children>
+        <children xsi:type="basic:PartStack" xmi:id="_putman_ps_0003" elementId="civerooni.com.putman.ui.partstack.response" containerData="300">
+          <children xsi:type="basic:Part" xmi:id="_putman_part_0003" elementId="civerooni.com.putman.ui.part.response" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.parts.ResponsePart" label="Response"/>
+        </children>
+      </children>
+    </children>
+    <mainMenu xmi:id="_putman_menu_0001" elementId="civerooni.com.putman.ui.main.menu">
+      <children xsi:type="menu:Menu" xmi:id="_putman_menu_0002" elementId="civerooni.com.putman.ui.main.menu.file" label="File">
+        <children xsi:type="menu:HandledMenuItem" xmi:id="_putman_mi_0001" elementId="civerooni.com.putman.ui.handledmenuitem.newrequest" label="New Request" command="_putman_cmd_0002"/>
+        <children xsi:type="menu:MenuSeparator" xmi:id="_putman_sep_0001" elementId="civerooni.com.putman.ui.menuseparator.0"/>
+        <children xsi:type="menu:HandledMenuItem" xmi:id="_putman_mi_0002" elementId="civerooni.com.putman.ui.handledmenuitem.exit" label="Exit" command="_putman_cmd_0001"/>
+      </children>
+      <children xsi:type="menu:Menu" xmi:id="_putman_menu_0003" elementId="civerooni.com.putman.ui.main.menu.request" label="Request">
+        <children xsi:type="menu:HandledMenuItem" xmi:id="_putman_mi_0003" elementId="civerooni.com.putman.ui.handledmenuitem.send" label="Send" command="_putman_cmd_0003"/>
+      </children>
+    </mainMenu>
+  </children>
+  <handlers xmi:id="_putman_h_0001" elementId="civerooni.com.putman.ui.handler.exit" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.handlers.ExitHandler" command="_putman_cmd_0001"/>
+  <handlers xmi:id="_putman_h_0002" elementId="civerooni.com.putman.ui.handler.newrequest" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.handlers.NewRequestHandler" command="_putman_cmd_0002"/>
+  <handlers xmi:id="_putman_h_0003" elementId="civerooni.com.putman.ui.handler.sendrequest" contributionURI="bundleclass://civerooni.com.putman.ui/civerooni.com.putman.ui.handlers.SendRequestHandler" command="_putman_cmd_0003"/>
+  <commands xmi:id="_putman_cmd_0001" elementId="org.eclipse.ui.file.exit" commandName="Exit"/>
+  <commands xmi:id="_putman_cmd_0002" elementId="civerooni.com.putman.ui.command.newrequest" commandName="New Request"/>
+  <commands xmi:id="_putman_cmd_0003" elementId="civerooni.com.putman.ui.command.sendrequest" commandName="Send Request"/>
+  <addons xmi:id="_putman_addon_0001" elementId="org.eclipse.e4.core.commands.service" contributionURI="bundleclass://org.eclipse.e4.core.commands/org.eclipse.e4.core.commands.CommandServiceAddon"/>
+  <addons xmi:id="_putman_addon_0002" elementId="org.eclipse.e4.ui.contexts.service" contributionURI="bundleclass://org.eclipse.e4.ui.services/org.eclipse.e4.ui.services.ContextServiceAddon"/>
+  <addons xmi:id="_putman_addon_0003" elementId="org.eclipse.e4.ui.bindings.service" contributionURI="bundleclass://org.eclipse.e4.ui.bindings/org.eclipse.e4.ui.bindings.BindingServiceAddon"/>
+  <addons xmi:id="_putman_addon_0004" elementId="org.eclipse.e4.ui.workbench.commands.model" contributionURI="bundleclass://org.eclipse.e4.ui.workbench/org.eclipse.e4.ui.internal.workbench.addons.CommandProcessingAddon"/>
+  <addons xmi:id="_putman_addon_0005" elementId="org.eclipse.e4.ui.workbench.contexts.model" contributionURI="bundleclass://org.eclipse.e4.ui.workbench/org.eclipse.e4.ui.internal.workbench.addons.ContextProcessingAddon"/>
+  <addons xmi:id="_putman_addon_0006" elementId="org.eclipse.e4.ui.workbench.bindings.model" contributionURI="bundleclass://org.eclipse.e4.ui.workbench.swt/org.eclipse.e4.ui.workbench.swt.util.BindingProcessingAddon"/>
+  <addons xmi:id="_putman_addon_0007" elementId="org.eclipse.e4.ui.workbench.handler.model" contributionURI="bundleclass://org.eclipse.e4.ui.workbench/org.eclipse.e4.ui.internal.workbench.addons.HandlerProcessingAddon"/>
+</application:Application>

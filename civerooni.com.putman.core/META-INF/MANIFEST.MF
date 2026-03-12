@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Putman Core
+Bundle-SymbolicName: civerooni.com.putman.core
+Bundle-Version: 1.0.0.qualifier
+Bundle-Vendor: CIVEROONI
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Export-Package: civerooni.com.putman.core.http,
+ civerooni.com.putman.core.logging,
+ civerooni.com.putman.core.model
+Automatic-Module-Name: civerooni.com.putman.core
