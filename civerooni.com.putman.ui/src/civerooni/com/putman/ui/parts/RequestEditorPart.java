@@ -22,6 +22,7 @@ import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
@@ -34,6 +35,8 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Text;
 
 import java.util.function.IntConsumer;
@@ -87,6 +90,35 @@ public class RequestEditorPart {
             }
         });
 
+        requestTabs.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseDoubleClick(MouseEvent e) {
+                CTabItem item = requestTabs.getItem(new Point(e.x, e.y));
+                if (item == null) {
+                    addNewTab();
+                } else {
+                    startTabRename(item);
+                }
+            }
+        });
+
+        requestTabs.addMenuDetectListener(e -> {
+            Point pt = requestTabs.toControl(e.x, e.y);
+            CTabItem item = requestTabs.getItem(pt);
+            if (item == null) return;
+            e.doit = false;
+            Menu menu = new Menu(requestTabs);
+            MenuItem cloneItem = new MenuItem(menu, SWT.PUSH);
+            cloneItem.setText("Clone Request");
+            cloneItem.addSelectionListener(new SelectionAdapter() {
+                @Override
+                public void widgetSelected(SelectionEvent se) {
+                    addClonedTab((RequestModel) item.getData("model"), item.getText());
+                }
+            });
+            menu.setVisible(true);
+        });
+
         addNewTab();
     }
 
@@ -135,6 +167,74 @@ public class RequestEditorPart {
         broker.post(REPLAY_RESPONSE_TOPIC, new ResponseReplay(ResponseModel.empty(), 0));
     }
 
+    private void addClonedTab(RequestModel source, String sourceName) {
+        RequestModel model = new RequestModel();
+        model.setMethod(source.getMethod());
+        model.setUrl(source.getUrl());
+        model.setBody(source.getBody());
+        for (HeaderEntry h : source.getHeaders()) {
+            model.getHeaders().add(new HeaderEntry(h.getKey(), h.getValue(), h.isEnabled()));
+        }
+        for (HeaderEntry p : source.getParams()) {
+            model.getParams().add(new HeaderEntry(p.getKey(), p.getValue(), p.isEnabled()));
+        }
+
+        CTabItem tab = new CTabItem(requestTabs, SWT.CLOSE);
+        tab.setText(sourceName + " (clone)");
+        tab.setData("model", model);
+        tab.setData("responseFormat", 0);
+
+        Composite content = new Composite(requestTabs, SWT.NONE);
+        createEditorContent(content, model);
+        tab.setControl(content);
+
+        requestTabs.setSelection(tab);
+        context.set(RequestModel.class, model);
+        broker.post(REPLAY_RESPONSE_TOPIC, new ResponseReplay(ResponseModel.empty(), 0));
+    }
+
+    private void startTabRename(CTabItem item) {
+        org.eclipse.swt.graphics.Rectangle bounds = item.getBounds();
+
+        Text editor = new Text(requestTabs, SWT.NONE);
+        editor.setText(item.getText());
+        editor.selectAll();
+
+        GC gc = new GC(editor);
+        Point textSize = gc.textExtent(editor.getText());
+        gc.dispose();
+        editor.setBounds(bounds.x + 2, bounds.y + 2, textSize.x + 20, bounds.height - 4);
+        editor.setFocus();
+
+        editor.addModifyListener(me -> {
+            if (editor.isDisposed()) return;
+            GC gc2 = new GC(editor);
+            Point size = gc2.textExtent(editor.getText().isEmpty() ? " " : editor.getText());
+            gc2.dispose();
+            org.eclipse.swt.graphics.Rectangle b = editor.getBounds();
+            editor.setBounds(b.x, b.y, size.x + 20, b.height);
+        });
+
+        Runnable commit = () -> {
+            if (editor.isDisposed()) return;
+            String newName = editor.getText().trim();
+            if (!newName.isEmpty() && !item.isDisposed()) {
+                item.setText(newName);
+            }
+            editor.dispose();
+        };
+
+        editor.addFocusListener(new FocusAdapter() {
+            @Override public void focusLost(FocusEvent e) { commit.run(); }
+        });
+        editor.addKeyListener(new KeyAdapter() {
+            @Override public void keyPressed(KeyEvent e) {
+                if (e.keyCode == SWT.CR || e.keyCode == SWT.KEYPAD_CR) commit.run();
+                else if (e.keyCode == SWT.ESC) editor.dispose();
+            }
+        });
+    }
+
     private void updateContextForActiveTab() {
         CTabItem selected = requestTabs.getSelection();
         if (selected == null || selected.isDisposed()) return;
@@ -157,7 +257,7 @@ public class RequestEditorPart {
 
         Combo methodCombo = new Combo(urlBar, SWT.DROP_DOWN | SWT.READ_ONLY);
         methodCombo.setItems(HttpMethod.names());
-        methodCombo.select(0);
+        methodCombo.select(model.getMethod().ordinal());
 
         Text urlText = new Text(urlBar, SWT.BORDER);
         urlText.setMessage("Enter request URL");
@@ -616,6 +716,24 @@ public class RequestEditorPart {
                 handlerService.executeHandler(cmd);
             }
         });
+
+        // Populate widgets from model (supports cloned/pre-filled tabs)
+        if (!model.getUrl().isEmpty()) {
+            suppressParamSync[0] = true;
+            urlText.setText(model.getUrl());
+            suppressParamSync[0] = false;
+            for (HeaderEntry p : model.getParams()) {
+                TableItem row = new TableItem(paramsTable, SWT.NONE);
+                row.setText(new String[] { p.getKey(), p.getValue(), p.isEnabled() ? "\u2611" : "\u2610" });
+            }
+        }
+        for (HeaderEntry h : model.getHeaders()) {
+            TableItem row = new TableItem(headersTable, SWT.NONE);
+            row.setText(new String[] { h.getKey(), h.getValue(), h.isEnabled() ? "\u2611" : "\u2610" });
+        }
+        if (!model.getBody().isEmpty()) {
+            bodyText.setText(model.getBody());
+        }
     }
 
     private static void refreshParamsTable(String url, Table paramsTable, RequestModel model) {
