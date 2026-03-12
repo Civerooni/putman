@@ -27,6 +27,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 
 import java.util.function.IntConsumer;
@@ -103,16 +104,32 @@ public class RequestEditorPart {
         tableLayout.setColumnData(enabledCol, new ColumnWeightData(10, 50));
         tableWrapper.setLayout(tableLayout);
 
+        // Grey background for empty filler rows below data
+        headersTable.setBackground(headersTable.getDisplay().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
+
         // Grey background + text for disabled/empty rows — uses owner-draw to bypass Eclipse CSS theming
         headersTable.addListener(SWT.EraseItem, event -> {
-            if ((event.detail & SWT.SELECTED) != 0) return;
             int idx = headersTable.indexOf((TableItem) event.item);
-            if (idx < 0 || idx >= model.getHeaders().size()) return;
-            HeaderEntry e = model.getHeaders().get(idx);
-            if (!e.isEnabled() || e.getKey().isBlank() || e.getValue().isBlank()) {
-                event.gc.setBackground(event.display.getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
-                event.gc.fillRectangle(event.x, event.y, event.width, event.height);
-                event.detail &= ~(SWT.BACKGROUND | SWT.FOREGROUND);
+            boolean isDataRow = idx >= 0 && idx < model.getHeaders().size();
+            boolean isSelected = (event.detail & SWT.SELECTED) != 0;
+
+            // Always suppress default text rendering for column 2 so PaintItem can center it
+            if (event.index == 2 && isDataRow) event.detail &= ~SWT.FOREGROUND;
+
+            if (isSelected) return; // let SWT draw the selection background
+
+            if (isDataRow) {
+                HeaderEntry e = model.getHeaders().get(idx);
+                if (!e.isEnabled() || e.getKey().isBlank() || e.getValue().isBlank()) {
+                    event.gc.setBackground(event.display.getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
+                    event.gc.fillRectangle(event.x, event.y, event.width, event.height);
+                    event.detail &= ~(SWT.BACKGROUND | SWT.FOREGROUND);
+                } else {
+                    // Enabled rows: explicitly fill white so table's grey background doesn't bleed through
+                    event.gc.setBackground(event.display.getSystemColor(SWT.COLOR_LIST_BACKGROUND));
+                    event.gc.fillRectangle(event.x, event.y, event.width, event.height);
+                    event.detail &= ~SWT.BACKGROUND;
+                }
             }
         });
 
@@ -123,12 +140,23 @@ public class RequestEditorPart {
                 event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
                 event.gc.drawLine(0, event.y, headersTable.getClientArea().width, event.y);
             }
-            // Draw dim text for non-selected disabled/empty rows (FOREGROUND was cleared in EraseItem)
-            if ((event.detail & SWT.SELECTED) != 0) return;
             int idx = headersTable.indexOf((TableItem) event.item);
             if (idx < 0 || idx >= model.getHeaders().size()) return;
             HeaderEntry e = model.getHeaders().get(idx);
-            if (!e.isEnabled() || e.getKey().isBlank() || e.getValue().isBlank()) {
+            boolean isDimmed = !e.isEnabled() || e.getKey().isBlank() || e.getValue().isBlank();
+            boolean isSelected = (event.detail & SWT.SELECTED) != 0;
+            if (event.index == 2) {
+                // Always center the checkbox character in the Enabled column
+                TableItem item = (TableItem) event.item;
+                String text = item.getText(2);
+                Point ext = event.gc.textExtent(text);
+                org.eclipse.swt.graphics.Rectangle cell = item.getBounds(2);
+                int x = cell.x + (cell.width - ext.x) / 2;
+                int y = cell.y + (cell.height - ext.y) / 2;
+                if (isDimmed && !isSelected) event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
+                event.gc.drawText(text, x, y, true);
+            } else if (isDimmed && !isSelected) {
+                // Draw dim text for disabled/empty rows in other columns
                 String text = ((TableItem) event.item).getText(event.index);
                 event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
                 event.gc.drawText(text, event.x + 2, event.y + 2, true);
@@ -242,9 +270,52 @@ public class RequestEditorPart {
         CTabItem bodyTab = new CTabItem(tabFolder, SWT.NONE);
         bodyTab.setText("Body");
 
-        Text bodyText = new Text(tabFolder, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
-        bodyTab.setControl(bodyText);
-        bodyText.addModifyListener(e -> model.setBody(bodyText.getText()));
+        Composite bodyComposite = new Composite(tabFolder, SWT.NONE);
+        bodyComposite.setLayout(new GridLayout(1, false));
+        bodyTab.setControl(bodyComposite);
+
+        Composite bodyToolbar = new Composite(bodyComposite, SWT.NONE);
+        bodyToolbar.setLayout(new GridLayout(2, false));
+        bodyToolbar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+
+        Combo bodyTypeCombo = new Combo(bodyToolbar, SWT.DROP_DOWN | SWT.READ_ONLY);
+        bodyTypeCombo.setItems("Raw", "JSON");
+        bodyTypeCombo.select(0);
+
+        Label bodyErrorLabel = new Label(bodyToolbar, SWT.NONE);
+        bodyErrorLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        bodyErrorLabel.setForeground(bodyErrorLabel.getDisplay().getSystemColor(SWT.COLOR_RED));
+
+        Text bodyText = new Text(bodyComposite, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
+        bodyText.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+        bodyText.addModifyListener(e -> {
+            model.setBody(bodyText.getText());
+            bodyErrorLabel.setText("");
+        });
+
+        final String[] bodyRawSnapshot = { "" };
+        bodyTypeCombo.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                bodyErrorLabel.setText("");
+                if (bodyTypeCombo.getSelectionIndex() == 1) { // JSON
+                    String raw = bodyText.getText();
+                    if (!raw.isBlank()) {
+                        try {
+                            bodyRawSnapshot[0] = raw;
+                            bodyText.setText(prettifyJson(raw));
+                        } catch (IllegalArgumentException ex) {
+                            bodyErrorLabel.setText("Invalid JSON: " + ex.getMessage());
+                        }
+                    }
+                } else { // Raw
+                    if (!bodyRawSnapshot[0].isEmpty()) {
+                        bodyText.setText(bodyRawSnapshot[0]);
+                        bodyRawSnapshot[0] = "";
+                    }
+                }
+            }
+        });
 
         tabFolder.setSelection(0);
 
@@ -258,7 +329,8 @@ public class RequestEditorPart {
 
         urlText.addModifyListener(e -> model.setUrl(urlText.getText()));
 
-        // Send button fires the sendrequest command so the handler is invoked via E4 DI
+
+        // Send button fires the sendrequest command via E4 DI
         sendButton.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
@@ -267,5 +339,72 @@ public class RequestEditorPart {
                 handlerService.executeHandler(cmd);
             }
         });
+    }
+
+    private static String prettifyJson(String json) {
+        StringBuilder sb = new StringBuilder();
+        int indent = 0;
+        boolean inString = false;
+        boolean escape = false;
+        String input = json.strip();
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            if (escape) {
+                sb.append(c);
+                escape = false;
+                continue;
+            }
+            if (inString) {
+                sb.append(c);
+                if (c == '\\') escape = true;
+                else if (c == '"') inString = false;
+                continue;
+            }
+
+            switch (c) {
+                case '"' -> { inString = true; sb.append(c); }
+                case '{', '[' -> {
+                    sb.append(c);
+                    // peek ahead: skip whitespace to see if next non-ws char closes immediately
+                    int next = nextNonWhitespace(input, i + 1);
+                    if (next != -1 && input.charAt(next) != '}' && input.charAt(next) != ']') {
+                        indent++;
+                        sb.append('\n');
+                        appendIndent(sb, indent);
+                    }
+                }
+                case '}', ']' -> {
+                    indent--;
+                    if (indent < 0) throw new IllegalArgumentException("unexpected '" + c + "'");
+                    sb.append('\n');
+                    appendIndent(sb, indent);
+                    sb.append(c);
+                }
+                case ',' -> {
+                    sb.append(c);
+                    sb.append('\n');
+                    appendIndent(sb, indent);
+                }
+                case ':' -> sb.append(": ");
+                default -> { if (c > ' ') sb.append(c); }
+            }
+        }
+
+        if (inString) throw new IllegalArgumentException("unterminated string");
+        if (indent != 0) throw new IllegalArgumentException("mismatched brackets");
+        return sb.toString();
+    }
+
+    private static int nextNonWhitespace(String s, int from) {
+        for (int i = from; i < s.length(); i++) {
+            if (s.charAt(i) > ' ') return i;
+        }
+        return -1;
+    }
+
+    private static void appendIndent(StringBuilder sb, int level) {
+        sb.append("    ".repeat(level));
     }
 }
