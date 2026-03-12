@@ -72,9 +72,202 @@ public class RequestEditorPart {
         Button sendButton = new Button(urlBar, SWT.PUSH);
         sendButton.setText("Send");
 
-        // Headers / Body tabs
+        // Params / Headers / Body tabs
         CTabFolder tabFolder = new CTabFolder(parent, SWT.BORDER);
         tabFolder.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        // Suppress flag to prevent feedback loops between URL text and params table
+        final boolean[] suppressParamSync = { false };
+
+        // --- Params tab ---
+        CTabItem paramsTab = new CTabItem(tabFolder, SWT.NONE);
+        paramsTab.setText("Params");
+
+        Composite paramsComposite = new Composite(tabFolder, SWT.NONE);
+        paramsComposite.setLayout(new GridLayout(1, false));
+        paramsTab.setControl(paramsComposite);
+
+        Composite paramsTableWrapper = new Composite(paramsComposite, SWT.NONE);
+        paramsTableWrapper.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        Table paramsTable = new Table(paramsTableWrapper, SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE | SWT.V_SCROLL);
+        paramsTable.setHeaderVisible(true);
+        paramsTable.setLinesVisible(true);
+
+        TableColumn paramKeyCol = new TableColumn(paramsTable, SWT.NONE);
+        paramKeyCol.setText("Key");
+        TableColumn paramValueCol = new TableColumn(paramsTable, SWT.NONE);
+        paramValueCol.setText("Value");
+        TableColumn paramEnabledCol = new TableColumn(paramsTable, SWT.CENTER);
+        paramEnabledCol.setText("Enabled");
+
+        TableColumnLayout paramsTableLayout = new TableColumnLayout();
+        paramsTableLayout.setColumnData(paramKeyCol,     new ColumnWeightData(40, 80));
+        paramsTableLayout.setColumnData(paramValueCol,   new ColumnWeightData(50, 80));
+        paramsTableLayout.setColumnData(paramEnabledCol, new ColumnWeightData(10, 50));
+        paramsTableWrapper.setLayout(paramsTableLayout);
+
+        paramsTable.setBackground(paramsTable.getDisplay().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
+
+        paramsTable.addListener(SWT.EraseItem, event -> {
+            int idx = paramsTable.indexOf((TableItem) event.item);
+            boolean isDataRow = idx >= 0 && idx < model.getParams().size();
+            boolean isSelected = (event.detail & SWT.SELECTED) != 0;
+            if (event.index == 2 && isDataRow) event.detail &= ~SWT.FOREGROUND;
+            if (isSelected) return;
+            if (isDataRow) {
+                HeaderEntry e = model.getParams().get(idx);
+                if (!e.isEnabled() || e.getKey().isBlank()) {
+                    event.gc.setBackground(event.display.getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
+                    event.gc.fillRectangle(event.x, event.y, event.width, event.height);
+                    event.detail &= ~(SWT.BACKGROUND | SWT.FOREGROUND);
+                } else {
+                    event.gc.setBackground(event.display.getSystemColor(SWT.COLOR_LIST_BACKGROUND));
+                    event.gc.fillRectangle(event.x, event.y, event.width, event.height);
+                    event.detail &= ~SWT.BACKGROUND;
+                }
+            }
+        });
+
+        paramsTable.addListener(SWT.PaintItem, event -> {
+            if (event.index == 0 && paramsTable.getItemCount() > 0
+                    && event.item == paramsTable.getItem(0)) {
+                event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
+                event.gc.drawLine(0, event.y, paramsTable.getClientArea().width, event.y);
+            }
+            int idx = paramsTable.indexOf((TableItem) event.item);
+            if (idx < 0 || idx >= model.getParams().size()) return;
+            HeaderEntry e = model.getParams().get(idx);
+            boolean isDimmed = !e.isEnabled() || e.getKey().isBlank();
+            boolean isSelected = (event.detail & SWT.SELECTED) != 0;
+            if (event.index == 2) {
+                TableItem item = (TableItem) event.item;
+                String text = item.getText(2);
+                Point ext = event.gc.textExtent(text);
+                org.eclipse.swt.graphics.Rectangle cell = item.getBounds(2);
+                int x = cell.x + (cell.width - ext.x) / 2;
+                int y = cell.y + (cell.height - ext.y) / 2;
+                if (isDimmed && !isSelected) event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
+                event.gc.drawText(text, x, y, true);
+            } else if (isDimmed && !isSelected) {
+                String text = ((TableItem) event.item).getText(event.index);
+                event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
+                event.gc.drawText(text, event.x + 2, event.y + 2, true);
+            }
+        });
+
+        IntConsumer updateParamRowStyle = idx -> paramsTable.redraw();
+
+        TableEditor paramsEditor = new TableEditor(paramsTable);
+        paramsEditor.horizontalAlignment = SWT.LEFT;
+        paramsEditor.grabHorizontal = true;
+        paramsEditor.minimumWidth = 50;
+
+        paramsTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseDown(MouseEvent e) {
+                Control old = paramsEditor.getEditor();
+                if (old != null) old.dispose();
+
+                TableItem item = paramsTable.getItem(new Point(e.x, e.y));
+                if (item == null) return;
+                int row = paramsTable.indexOf(item);
+                HeaderEntry entry = model.getParams().get(row);
+
+                int col = -1;
+                for (int i = 0; i < 3; i++) {
+                    if (item.getBounds(i).contains(e.x, e.y)) { col = i; break; }
+                }
+
+                if (col == 0 || col == 1) {
+                    Text text = new Text(paramsTable, SWT.NONE);
+                    text.setText(item.getText(col));
+                    text.selectAll();
+                    final int c = col;
+                    Runnable commit = () -> {
+                        if (text.isDisposed()) return;
+                        String val = text.getText();
+                        if (c == 0) entry.setKey(val);
+                        else entry.setValue(val);
+                        item.setText(c, val);
+                        updateParamRowStyle.accept(row);
+                        text.dispose();
+                        suppressParamSync[0] = true;
+                        urlText.setText(buildUrlWithParams(model));
+                        suppressParamSync[0] = false;
+                    };
+                    text.addFocusListener(new FocusAdapter() {
+                        @Override public void focusLost(FocusEvent e) { commit.run(); }
+                    });
+                    text.addKeyListener(new KeyAdapter() {
+                        @Override public void keyPressed(KeyEvent e) {
+                            if (e.keyCode == SWT.CR || e.keyCode == SWT.KEYPAD_CR) commit.run();
+                            else if (e.keyCode == SWT.ESC) text.dispose();
+                        }
+                    });
+                    paramsEditor.setEditor(text, item, col);
+                    text.setFocus();
+                } else if (col == 2) {
+                    entry.setEnabled(!entry.isEnabled());
+                    item.setText(2, entry.isEnabled() ? "\u2611" : "\u2610");
+                    updateParamRowStyle.accept(row);
+                    suppressParamSync[0] = true;
+                    urlText.setText(buildUrlWithParams(model));
+                    suppressParamSync[0] = false;
+                }
+            }
+        });
+
+        Composite paramInputRow = new Composite(paramsComposite, SWT.NONE);
+        paramInputRow.setLayout(new GridLayout(4, false));
+        paramInputRow.setLayoutData(new GridData(SWT.FILL, SWT.BOTTOM, true, false));
+
+        Text paramKeyText = new Text(paramInputRow, SWT.BORDER);
+        paramKeyText.setMessage("Key");
+        paramKeyText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+
+        Text paramValueText = new Text(paramInputRow, SWT.BORDER);
+        paramValueText.setMessage("Value");
+        paramValueText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+
+        Button addParamButton = new Button(paramInputRow, SWT.PUSH);
+        addParamButton.setText("Add");
+
+        Button removeParamButton = new Button(paramInputRow, SWT.PUSH);
+        removeParamButton.setText("Remove");
+
+        addParamButton.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                String key = paramKeyText.getText().trim();
+                String value = paramValueText.getText().trim();
+                if (!key.isEmpty()) {
+                    model.getParams().add(new HeaderEntry(key, value, true));
+                    TableItem item = new TableItem(paramsTable, SWT.NONE);
+                    item.setText(new String[] { key, value, "\u2611" });
+                    updateParamRowStyle.accept(paramsTable.getItemCount() - 1);
+                    paramKeyText.setText("");
+                    paramValueText.setText("");
+                    suppressParamSync[0] = true;
+                    urlText.setText(buildUrlWithParams(model));
+                    suppressParamSync[0] = false;
+                }
+            }
+        });
+
+        removeParamButton.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                int idx = paramsTable.getSelectionIndex();
+                if (idx >= 0) {
+                    model.getParams().remove(idx);
+                    paramsTable.remove(idx);
+                    suppressParamSync[0] = true;
+                    urlText.setText(buildUrlWithParams(model));
+                    suppressParamSync[0] = false;
+                }
+            }
+        });
 
         // --- Headers tab ---
         CTabItem headersTab = new CTabItem(tabFolder, SWT.NONE);
@@ -104,20 +297,14 @@ public class RequestEditorPart {
         tableLayout.setColumnData(enabledCol, new ColumnWeightData(10, 50));
         tableWrapper.setLayout(tableLayout);
 
-        // Grey background for empty filler rows below data
         headersTable.setBackground(headersTable.getDisplay().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
 
-        // Grey background + text for disabled/empty rows — uses owner-draw to bypass Eclipse CSS theming
         headersTable.addListener(SWT.EraseItem, event -> {
             int idx = headersTable.indexOf((TableItem) event.item);
             boolean isDataRow = idx >= 0 && idx < model.getHeaders().size();
             boolean isSelected = (event.detail & SWT.SELECTED) != 0;
-
-            // Always suppress default text rendering for column 2 so PaintItem can center it
             if (event.index == 2 && isDataRow) event.detail &= ~SWT.FOREGROUND;
-
-            if (isSelected) return; // let SWT draw the selection background
-
+            if (isSelected) return;
             if (isDataRow) {
                 HeaderEntry e = model.getHeaders().get(idx);
                 if (!e.isEnabled() || e.getKey().isBlank() || e.getValue().isBlank()) {
@@ -125,7 +312,6 @@ public class RequestEditorPart {
                     event.gc.fillRectangle(event.x, event.y, event.width, event.height);
                     event.detail &= ~(SWT.BACKGROUND | SWT.FOREGROUND);
                 } else {
-                    // Enabled rows: explicitly fill white so table's grey background doesn't bleed through
                     event.gc.setBackground(event.display.getSystemColor(SWT.COLOR_LIST_BACKGROUND));
                     event.gc.fillRectangle(event.x, event.y, event.width, event.height);
                     event.detail &= ~SWT.BACKGROUND;
@@ -134,7 +320,6 @@ public class RequestEditorPart {
         });
 
         headersTable.addListener(SWT.PaintItem, event -> {
-            // Reinforce header separator at the top of the first data row
             if (event.index == 0 && headersTable.getItemCount() > 0
                     && event.item == headersTable.getItem(0)) {
                 event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
@@ -146,7 +331,6 @@ public class RequestEditorPart {
             boolean isDimmed = !e.isEnabled() || e.getKey().isBlank() || e.getValue().isBlank();
             boolean isSelected = (event.detail & SWT.SELECTED) != 0;
             if (event.index == 2) {
-                // Always center the checkbox character in the Enabled column
                 TableItem item = (TableItem) event.item;
                 String text = item.getText(2);
                 Point ext = event.gc.textExtent(text);
@@ -156,17 +340,14 @@ public class RequestEditorPart {
                 if (isDimmed && !isSelected) event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
                 event.gc.drawText(text, x, y, true);
             } else if (isDimmed && !isSelected) {
-                // Draw dim text for disabled/empty rows in other columns
                 String text = ((TableItem) event.item).getText(event.index);
                 event.gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
                 event.gc.drawText(text, event.x + 2, event.y + 2, true);
             }
         });
 
-        // Owner-draw derives state from model on each repaint; just trigger a redraw
         IntConsumer updateRowStyle = idx -> headersTable.redraw();
 
-        // Inline cell editor
         TableEditor editor = new TableEditor(headersTable);
         editor.horizontalAlignment = SWT.LEFT;
         editor.grabHorizontal = true;
@@ -327,10 +508,15 @@ public class RequestEditorPart {
             }
         });
 
-        urlText.addModifyListener(e -> model.setUrl(urlText.getText()));
+        // URL listener: update model and parse params (unless we're rebuilding the URL from params)
+        urlText.addModifyListener(e -> {
+            String url = urlText.getText();
+            model.setUrl(url);
+            if (!suppressParamSync[0]) {
+                refreshParamsTable(url, paramsTable, model);
+            }
+        });
 
-
-        // Send button fires the sendrequest command via E4 DI
         sendButton.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
@@ -339,6 +525,53 @@ public class RequestEditorPart {
                 handlerService.executeHandler(cmd);
             }
         });
+    }
+
+    /**
+     * Parses query parameters from the URL and repopulates the params table and model.
+     * Called when the user edits the URL text directly.
+     */
+    private static void refreshParamsTable(String url, Table paramsTable, RequestModel model) {
+        model.getParams().clear();
+        paramsTable.removeAll();
+
+        int queryStart = url.indexOf('?');
+        if (queryStart < 0 || queryStart >= url.length() - 1) return;
+
+        String query = url.substring(queryStart + 1);
+        for (String pair : query.split("&", -1)) {
+            if (pair.isEmpty()) continue;
+            int eq = pair.indexOf('=');
+            String key = eq >= 0 ? pair.substring(0, eq) : pair;
+            String value = eq >= 0 && eq < pair.length() - 1 ? pair.substring(eq + 1) : "";
+            model.getParams().add(new HeaderEntry(key, value, true));
+            TableItem item = new TableItem(paramsTable, SWT.NONE);
+            item.setText(new String[] { key, value, "\u2611" });
+        }
+    }
+
+    /**
+     * Rebuilds the URL from the base (everything before '?') plus only the enabled params.
+     * Called when the user edits params in the table.
+     */
+    private static String buildUrlWithParams(RequestModel model) {
+        String url = model.getUrl();
+        int queryStart = url.indexOf('?');
+        String base = queryStart >= 0 ? url.substring(0, queryStart) : url;
+
+        StringBuilder sb = new StringBuilder(base);
+        boolean first = true;
+        for (HeaderEntry p : model.getParams()) {
+            if (!p.isEnabled() || p.getKey().isBlank()) continue;
+            sb.append(first ? '?' : '&');
+            sb.append(p.getKey());
+            if (!p.getValue().isEmpty()) {
+                sb.append('=');
+                sb.append(p.getValue());
+            }
+            first = false;
+        }
+        return sb.toString();
     }
 
     private static String prettifyJson(String json) {
@@ -367,7 +600,6 @@ public class RequestEditorPart {
                 case '"' -> { inString = true; sb.append(c); }
                 case '{', '[' -> {
                     sb.append(c);
-                    // peek ahead: skip whitespace to see if next non-ws char closes immediately
                     int next = nextNonWhitespace(input, i + 1);
                     if (next != -1 && input.charAt(next) != '}' && input.charAt(next) != ']') {
                         indent++;
