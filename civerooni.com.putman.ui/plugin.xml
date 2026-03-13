@@ -15,4 +15,19 @@
       </product>
    </extension>
 
+
+   <extension point="org.eclipse.ui.views">
+      <category
+            id="civerooni.com.putman"
+            name="Putman">
+      </category>
+      <view
+            id="civerooni.com.putman.ui.views.PutmanView"
+            name="Putman"
+            category="civerooni.com.putman"
+            class="civerooni.com.putman.ui.views.PutmanViewPart"
+            restorable="true">
+      </view>
+   </extension>
+
 </plugin>

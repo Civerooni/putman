@@ -13,7 +13,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.e4.core.contexts,
  org.eclipse.e4.core.services,
  org.eclipse.e4.core.commands,
- civerooni.com.putman.core
+ civerooni.com.putman.core,
+ org.eclipse.ui;resolution:=optional
 Bundle-RequiredExecutionEnvironment: JavaSE-21
 Import-Package: jakarta.annotation;version="[2.1.0,3.0.0)";resolution:=optional,
  jakarta.inject;version="[2.0.0,3.0.0)"
