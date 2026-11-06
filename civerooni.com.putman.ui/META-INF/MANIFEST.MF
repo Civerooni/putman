@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: Putman
 Bundle-SymbolicName: civerooni.com.putman.ui;singleton:=true
 Bundle-Version: 1.0.0.qualifier
-Bundle-Vendor: CIVEROONI
+Bundle-Vendor: Civerooni
 Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.jface,
  org.eclipse.e4.core.di,

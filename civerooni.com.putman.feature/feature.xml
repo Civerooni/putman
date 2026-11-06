@@ -3,10 +3,10 @@
       id="civerooni.com.putman.feature"
       label="Putman REST Client"
       version="1.0.0.qualifier"
-      provider-name="CIVEROONI"
+      provider-name="Civerooni"
       plugin="civerooni.com.putman.ui">
 
-   <description url="https://github.com/civerooni/putman">
+   <description url="https://github.com/Civerooni/putman">
       Putman is a REST API client for Eclipse, inspired by Postman.
       Send HTTP requests (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS),
       inspect responses in Raw, JSON, or HTML format, and manage multiple
@@ -14,7 +14,7 @@
    </description>
 
    <copyright>
-      Copyright (c) 2026 Civerooni. All rights reserved.
+      Copyright (c) 2026 Shayne Civitarese and others.
    </copyright>
 
    <license url="https://www.eclipse.org/legal/epl-2.0/">

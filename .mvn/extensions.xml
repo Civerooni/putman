@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extensions>
+  <!-- Tycho "pomless" build: bundle and feature modules are derived from
+       MANIFEST.MF / feature.xml, so only this root pom.xml is needed. -->
+  <extension>
+    <groupId>org.eclipse.tycho</groupId>
+    <artifactId>tycho-build</artifactId>
+    <version>5.0.4</version>
+  </extension>
+</extensions>

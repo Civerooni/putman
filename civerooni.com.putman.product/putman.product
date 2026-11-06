@@ -9,8 +9,6 @@
    <launcherArgs>
       <programArgs>-clearPersistedState
       </programArgs>
-      <vmArgs>-Djava.util.logging.config.file=&quot;${workspace_loc:/civerooni.com.putman.product/logging.properties}&quot;
-      </vmArgs>
       <vmArgsMac>-XstartOnFirstThread -Dorg.eclipse.swt.internal.carbon.smallFonts
       </vmArgsMac>
    </launcherArgs>

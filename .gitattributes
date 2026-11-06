@@ -1,0 +1,18 @@
+# Normalise line endings: LF in the repository, native on checkout.
+* text=auto
+
+*.java        text
+*.xml         text
+*.e4xmi       text
+*.MF          text
+*.properties  text
+*.product     text
+*.target      text
+*.launch      text
+*.md          text
+*.yml         text
+
+*.jar   binary
+*.png   binary
+*.gif   binary
+*.ico   binary

@@ -1,1 +1,25 @@
+# Local AI-assistant notes (never committed)
 CLAUDE.md
+.claude/
+
+# Eclipse / PDE build output
+bin/
+*.class
+
+# Maven / Tycho build output
+target/
+.tycho-consumer-pom.xml
+.polyglot.*
+pom.tycho
+
+# Runtime workspaces created by Eclipse Application launches
+runtime-*/
+
+# Eclipse metadata
+.metadata/
+*.tmp
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db

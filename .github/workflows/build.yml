@@ -1,0 +1,36 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Tycho build (Java 21)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and verify
+        run: mvn -B -ntp verify
+
+      - name: Upload feature jar
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: putman-feature
+          path: civerooni.com.putman.feature/target/*.jar
+          if-no-files-found: error
