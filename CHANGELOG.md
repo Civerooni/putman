@@ -21,6 +21,8 @@ All notable changes to Putman are recorded here. The format is based on
   configuration path. Debug logging is now enabled by the shared launch
   configuration instead.
 - Unified vendor and copyright strings across bundles and the feature.
+- Target platform now includes the Eclipse Platform feature so the IDE view can be
+  tested with **Run As → Eclipse Application** instead of only via an installed build.
 
 ### Removed
 - Obsolete `civerooni.com.putman.site` category definition. The update site is

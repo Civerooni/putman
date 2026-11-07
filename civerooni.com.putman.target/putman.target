@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <?pde version="3.8"?>
-<target name="Putman Target Platform" sequenceNumber="3">
+<target name="Putman Target Platform" sequenceNumber="4">
   <locations>
 
     <!-- Eclipse 2024-12 SimRel — E4 RCP, SWT, JFace, Equinox -->
     <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="false" type="InstallableUnit">
       <unit id="org.eclipse.equinox.executable.feature.group" version="0.0.0"/>
       <unit id="org.eclipse.e4.rcp.feature.group" version="0.0.0"/>
-      <!-- org.eclipse.ui is needed to compile the IDE view (PutmanViewPart); it is not bundled in the standalone product -->
-      <unit id="org.eclipse.ui" version="0.0.0"/>
+      <!-- The Eclipse Platform feature provides org.eclipse.ui (needed to compile the IDE view, PutmanViewPart)
+           and the IDE workbench application, so "Run As > Eclipse Application" can host Putman as a view.
+           Neither is bundled into the standalone product. -->
+      <unit id="org.eclipse.platform.feature.group" version="0.0.0"/>
       <repository location="https://download.eclipse.org/releases/2024-12/"/>
     </location>
 
