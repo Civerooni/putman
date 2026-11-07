@@ -28,6 +28,22 @@ There is no command-line test runner today. `mvn -B verify` compiles the
 bundles against the target platform and packages the feature. It runs on every
 pull request, so please run it locally before you push.
 
+## Testing an exported build
+
+To test the real install path, export the feature (File → Export → Plug-in
+Development → Deployable Features, with **Generate p2 repository** ticked) into
+an empty folder, then install it into an Eclipse IDE from that folder via
+**Help → Install New Software…**.
+
+Two wizard settings matter:
+
+- **Untick "Contact all update sites during install to find required
+  software".** Leaving it on lets p2 pull unrelated upgrades from every
+  enabled update site into your IDE at the same time. If your IDE is older
+  than the newest Eclipse release, that can leave it unable to start.
+- **Untick "Group items by category"** for a local export, because the export
+  wizard does not publish a category.
+
 ## Workflow
 
 1. Fork the repository and create a branch from `main`:
